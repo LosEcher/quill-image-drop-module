@@ -3,7 +3,7 @@
  * and paste images from clipboard (Works on Chrome, Firefox, Edge, not on Safari)
  * @see https://quilljs.com/blog/building-a-custom-module/
  */
-export class ImageDrop {
+export default class ImageDrop {
 
 	/**
 	 * Instantiate the module given a quill instance and any options
@@ -13,6 +13,8 @@ export class ImageDrop {
 	constructor(quill, options = {}) {
 		// save the quill reference
 		this.quill = quill;
+		// save options
+		this.options = options;
 		// bind handlers to this instance
 		this.handleDrop = this.handleDrop.bind(this);
 		this.handlePaste = this.handlePaste.bind(this);
@@ -35,7 +37,7 @@ export class ImageDrop {
 					selection.setBaseAndExtent(range.startContainer, range.startOffset, range.startContainer, range.startOffset);
 				}
 			}
-			this.readFiles(evt.dataTransfer.files, this.insert.bind(this));
+			this.readFiles(evt.dataTransfer.files, this.uploadImage.bind(this));//.insert.bind(this));
 		}
 	}
 
@@ -54,7 +56,7 @@ export class ImageDrop {
 				else {
 					// otherwise we wait until after the paste when this.quill.getSelection()
 					// will return a valid index
-					setTimeout(() => this.insert(dataUrl), 0);
+					setTimeout(() => this.uploadImage(dataUrl), 0);//insert(dataUrl), 0);
 				}
 			});
 		}
@@ -77,7 +79,7 @@ export class ImageDrop {
 	readFiles(files, callback) {
 		// check each file for an image
 		[].forEach.call(files, file => {
-			if (!file.type.match(/^image\/(gif|jpe?g|a?png|svg|webp|bmp|vnd\.microsoft\.icon)/i)) {
+			if (!file.type.match(/^image\/(gif|jpe?g|a?png|svg|webp|bmp)/i)) {
 				// file is not an image
 				// Note that some file formats such as psd start with image/* but are not readable
 				return;
@@ -93,6 +95,66 @@ export class ImageDrop {
 				reader.readAsDataURL(blob);
 			}
 		});
+	}
+	/**
+	 * Upload image with option "upload"
+	 * @param {String} dataUrl image to insert
+	 */
+	uploadImage(dataUrl) {
+		// check if we need to upload image
+		if (this.options.hasOwnProperty('uploadImage')) {
+			const uploadImageOptions = this.options.uploadImage,
+				url = uploadImageOptions.url || 'your-url.com',
+				method = uploadImageOptions.method || 'POST',
+				headers = uploadImageOptions.headers || {},
+				callback = uploadImageOptions.callback || this.uploadImageCallback.bind(this),
+				callbackError = uploadImageOptions.callbackError || this.uploadImageCallbackError.bind(this);
+
+			const xhr = new XMLHttpRequest();
+			// init http query
+			xhr.open(method, uploadImageOptions.url, true);
+			// add custom headers
+			for (let index in headers) {
+				xhr.setRequestHeader(index, headers[index]);
+			}
+
+			// listen callback
+			xhr.onload = () => {
+				if (xhr.status === 200) {
+					callback(JSON.parse(xhr.responseText), this.insert.bind(this));
+				} else {
+					callbackError({
+						code: xhr.status,
+						type: xhr.statusText,
+						body: xhr.responseText
+					});
+				}
+			};
+
+			xhr.send(JSON.stringify({
+				image: dataUrl
+			}));
+
+		} else {
+			// default insert data url
+			this.insert(dataUrl);
+		}
+	}
+
+	/**
+	 * callback on image upload successful
+	 * @param {Any} response http response
+	 */
+	uploadImageCallback(response, next) {
+		next(response);
+	}
+
+	/**
+	 * callback on image upload failed
+	 * @param {Any} error http error
+	 */
+	uploadImageCallbackError(error) {
+		console.log("error: " + error);
 	}
 
 }
