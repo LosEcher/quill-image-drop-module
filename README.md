@@ -54,11 +54,11 @@ imageDrop: {
         method: "POST", // change query method, default 'POST' 
         headers: {}, // add custom headers, example { token: 'your-token'}
         // personalize successful callback and call next function to insert new url to the editor
-        callback: (serverResponse, next) => {
+        success: (serverResponse, next) => {
             next(serverResponse);   
         },
         // personalize failed callback
-        callbackError: (serverError) => {
+        error: (serverError) => {
             console.log("error: " + serverError);
         }
     }
